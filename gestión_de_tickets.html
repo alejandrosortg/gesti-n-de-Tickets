@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tickets Pro - Kanban</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .kanban-col {
+            min-height: calc(100vh - 240px);
+        }
+        /* Custom smooth scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-full flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 sticky top-0 z-30 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md shadow-indigo-500/20 flex items-center justify-center">
+                <i class="fa-solid fa-ticket text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    Gestor de Tickets Pro <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">v1.0</span>
+                </h1>
+                <p class="text-xs text-slate-400">Sistema Kanban corporativo y persistente</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <!-- Search Input -->
+            <div class="relative flex-1 sm:w-64">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-search text-xs"></i>
+                </span>
+                <input type="text" id="searchInput" placeholder="Buscar ticket..." 
+                    class="w-full bg-slate-900/80 text-sm text-slate-200 placeholder-slate-500 pl-9 pr-4 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 transition-all">
+            </div>
+
+            <!-- New Ticket Button -->
+            <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-4 py-2 rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2 shrink-0">
+                <i class="fa-solid fa-plus"></i>
+                <span>Nuevo Ticket</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Kanban Container -->
+    <main class="flex-1 overflow-x-auto p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 min-w-[1100px] h-full pb-4">
+            
+            <!-- Column 1: To Do / Backlog -->
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl flex flex-col shadow-sm">
+                <div class="p-4 border-b border-slate-700/60 flex justify-between items-center bg-slate-800/80 rounded-t-2xl">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+                        <h2 class="font-semibold text-sm tracking-wide text-slate-200 uppercase">Por Hacer</h2>
+                    </div>
+                    <span id="count-todo" class="bg-slate-700 text-slate-300 text-xs font-bold px-2.5 py-1 rounded-full">0</span>
+                </div>
+                <div id="col-todo" class="kanban-col p-4 flex flex-col gap-3.5 overflow-y-auto" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="drop(event, 'todo')">
+                    <!-- Cards will be injected here -->
+                </div>
+            </div>
+
+            <!-- Column 2: In Progress -->
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl flex flex-col shadow-sm">
+                <div class="p-4 border-b border-slate-700/60 flex justify-between items-center bg-slate-800/80 rounded-t-2xl">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></span>
+                        <h2 class="font-semibold text-sm tracking-wide text-slate-200 uppercase">En Proceso</h2>
+                    </div>
+                    <span id="count-in_progress" class="bg-slate-700 text-slate-300 text-xs font-bold px-2.5 py-1 rounded-full">0</span>
+                </div>
+                <div id="col-in_progress" class="kanban-col p-4 flex flex-col gap-3.5 overflow-y-auto" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="drop(event, 'in_progress')">
+                    <!-- Cards will be injected here -->
+                </div>
+            </div>
+
+            <!-- Column 3: Review -->
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl flex flex-col shadow-sm">
+                <div class="p-4 border-b border-slate-700/60 flex justify-between items-center bg-slate-800/80 rounded-t-2xl">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-3 h-3 rounded-full bg-purple-500 shadow-sm shadow-purple-500/50"></span>
+                        <h2 class="font-semibold text-sm tracking-wide text-slate-200 uppercase">Revisión</h2>
+                    </div>
+                    <span id="count-review" class="bg-slate-700 text-slate-300 text-xs font-bold px-2.5 py-1 rounded-full">0</span>
+                </div>
+                <div id="col-review" class="kanban-col p-4 flex flex-col gap-3.5 overflow-y-auto" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="drop(event, 'review')">
+                    <!-- Cards will be injected here -->
+                </div>
+            </div>
+
+            <!-- Column 4: Done -->
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl flex flex-col shadow-sm">
+                <div class="p-4 border-b border-slate-700/60 flex justify-between items-center bg-slate-800/80 rounded-t-2xl">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                        <h2 class="font-semibold text-sm tracking-wide text-slate-200 uppercase">Completado</h2>
+                    </div>
+                    <span id="count-done" class="bg-slate-700 text-slate-300 text-xs font-bold px-2.5 py-1 rounded-full">0</span>
+                </div>
+                <div id="col-done" class="kanban-col p-4 flex flex-col gap-3.5 overflow-y-auto" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="drop(event, 'done')">
+                    <!-- Cards will be injected here -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Ticket Modal (Create / Edit) -->
+    <div id="ticketModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden transform transition-all">
+            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/80">
+                <h3 id="modalTitle" class="text-lg font-semibold text-white">Nuevo Ticket</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white transition-colors p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="ticketForm" onsubmit="saveTicket(event)" class="p-6 space-y-4">
+                <input type="hidden" id="ticketId">
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 uppercase mb-1.5">Título del Ticket</label>
+                    <input type="text" id="ticketTitle" required placeholder="Ej. Error en la pasarela de pagos"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 uppercase mb-1.5">Prioridad</label>
+                        <select id="ticketPriority" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <option value="Baja">Baja</option>
+                            <option value="Media" selected>Media</option>
+                            <option value="Alta">Alta</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 uppercase mb-1.5">Categoría / Etiqueta</label>
+                        <input type="text" id="ticketCategory" required placeholder="Ej. Bug, Backend, UI"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 uppercase mb-1.5">Estado Inicial</label>
+                    <select id="ticketStatus" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                        <option value="todo">Por Hacer</option>
+                        <option value="in_progress">En Proceso</option>
+                        <option value="review">Revisión</option>
+                        <option value="done">Completado</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 uppercase mb-1.5">Descripción Detallada</label>
+                    <textarea id="ticketDescription" rows="4" placeholder="Explica detalladamente los pasos a seguir o el requerimiento..."
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                    <button type="button" onclick="closeModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium px-4 py-2.5 rounded-xl text-sm transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-indigo-600/30 transition-all">
+                        Guardar Ticket
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Notification Box (Instead of Alert) -->
+    <div id="notificationToast" class="fixed bottom-6 right-6 bg-slate-800 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMessage" class="text-sm font-medium">Operación realizada con éxito</span>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // Initial Mock Data if LocalStorage is empty
+        const defaultTickets = [
+            {
+                id: 'ticket-1',
+                title: 'Optimizar consultas SQL en la base de datos',
+                description: 'Las consultas de informes están tardando más de 5 segundos en producción. Necesitamos índices.',
+                priority: 'Alta',
+                category: 'Backend',
+                status: 'todo',
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: 'ticket-2',
+                title: 'Actualizar diseño responsive en móvil',
+                description: 'El menú hamburguesa se superpone con el logotipo en pantallas inferiores a 375px.',
+                priority: 'Media',
+                category: 'UI/UX',
+                status: 'in_progress',
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: 'ticket-3',
+                title: 'Auditoría de seguridad de dependencias',
+                description: 'Revisar vulnerabilidades npm y actualizar paquetes obsoletos en package.json.',
+                priority: 'Baja',
+                category: 'Seguridad',
+                status: 'review',
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: 'ticket-4',
+                title: 'Configurar despliegue continuo en GitHub Actions',
+                description: 'Automatizar el build y la publicación en GitHub Pages cada vez que se haga push a main.',
+                priority: 'Alta',
+                category: 'DevOps',
+                status: 'done',
+                createdAt: new Date().toISOString()
+            }
+        ];
+
+        let tickets = JSON.parse(localStorage.getItem('kanban_tickets')) || defaultTickets;
+
+        // Search filter state
+        let currentSearchQuery = '';
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            currentSearchQuery = e.target.value.toLowerCase();
+            renderBoard();
+        });
+
+        // Save tickets to localStorage
+        function saveToStorage() {
+            localStorage.setItem('kanban_tickets', JSON.stringify(tickets));
+        }
+
+        // Show Custom Toast Notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('notificationToast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+
+            msg.textContent = message;
+            if (type === 'success') {
+                icon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
+            } else {
+                icon.className = 'fa-solid fa-circle-exclamation text-amber-400 text-base';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Render Kanban Board
+        function renderBoard() {
+            const statuses = ['todo', 'in_progress', 'review', 'done'];
+            
+            statuses.forEach(status => {
+                const container = document.getElementById(`col-${status}`);
+                const countBadge = document.getElementById(`count-${status}`);
+                
+                // Filter tickets by status and search query
+                const filtered = tickets.filter(t => {
+                    const matchesStatus = t.status === status;
+                    const matchesSearch = t.title.toLowerCase().includes(currentSearchQuery) || 
+                                          t.description.toLowerCase().includes(currentSearchQuery) || 
+                                          t.category.toLowerCase().includes(currentSearchQuery);
+                    return matchesStatus && matchesSearch;
+                });
+
+                countBadge.textContent = filtered.length;
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                        <div class="border-2 border-dashed border-slate-700/60 rounded-xl p-6 text-center flex flex-col items-center justify-center text-slate-500 my-auto">
+                            <i class="fa-regular fa-folder-open text-2xl mb-1.5 opacity-40"></i>
+                            <p class="text-xs">Sin tickets</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '';
+                filtered.forEach(ticket => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-900 border border-slate-700/80 rounded-xl p-4 shadow-md hover:border-slate-600 transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 group relative';
+                    card.draggable = true;
+                    card.id = ticket.id;
+                    card.ondragstart = (e) => drag(e, ticket.id);
+
+                    // Priority Badge styling
+                    let priorityColor = 'bg-slate-800 text-slate-300 border-slate-700';
+                    if (ticket.priority === 'Alta') priorityColor = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                    if (ticket.priority === 'Media') priorityColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                    if (ticket.priority === 'Baja') priorityColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md uppercase tracking-wide border ${priorityColor}">
+                                ${ticket.priority}
+                            </span>
+                            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-150 transition-opacity">
+                                <button onclick="openModal('${ticket.id}')" title="Editar" class="text-slate-400 hover:text-indigo-400 p-1 transition-colors">
+                                    <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                </button>
+                                <button onclick="deleteTicket('${ticket.id}')" title="Eliminar" class="text-slate-400 hover:text-rose-400 p-1 transition-colors">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="font-semibold text-sm text-white leading-snug mb-1">${escapeHtml(ticket.title)}</h4>
+                            <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(ticket.description)}</p>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2 border-t border-slate-800 mt-1">
+                            <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                                #${escapeHtml(ticket.category)}
+                            </span>
+                            <select onchange="changeStatusQuick(event, '${ticket.id}')" class="bg-slate-800 text-slate-300 text-[11px] font-medium rounded px-2 py-1 border border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                <option value="todo" ${ticket.status === 'todo' ? 'selected' : ''}>Por Hacer</option>
+                                <option value="in_progress" ${ticket.status === 'in_progress' ? 'selected' : ''}>En Proceso</option>
+                                <option value="review" ${ticket.status === 'review' ? 'selected' : ''}>Revisión</option>
+                                <option value="done" ${ticket.status === 'done' ? 'selected' : ''}>Completado</option>
+                            </select>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+        }
+
+        // Drag and Drop Handlers
+        function drag(ev, ticketId) {
+            ev.dataTransfer.setData("text/plain", ticketId);
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            ev.currentTarget.classList.add('bg-slate-800/80');
+        }
+
+        function removeDropStyle(ev) {
+            ev.currentTarget.classList.remove('bg-slate-800/80');
+        }
+
+        function drop(ev, newStatus) {
+            ev.preventDefault();
+            ev.currentTarget.classList.remove('bg-slate-800/80');
+            const ticketId = ev.dataTransfer.getData("text/plain");
+            
+            const ticket = tickets.find(t => t.id === ticketId);
+            if (ticket && ticket.status !== newStatus) {
+                ticket.status = newStatus;
+                saveToStorage();
+                renderBoard();
+                showToast(`Ticket movido correctamente`);
+            }
+        }
+
+        // Quick dropdown status change
+        function changeStatusQuick(event, ticketId) {
+            const newStatus = event.target.value;
+            const ticket = tickets.find(t => t.id === ticketId);
+            if (ticket) {
+                ticket.status = newStatus;
+                saveToStorage();
+                renderBoard();
+                showToast('Estado actualizado');
+            }
+        }
+
+        // Modal Controls
+        function openModal(ticketId = null) {
+            const modal = document.getElementById('ticketModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const form = document.getElementById('ticketForm');
+            
+            form.reset();
+            modal.classList.remove('hidden');
+
+            if (ticketId) {
+                modalTitle.textContent = 'Editar Ticket';
+                const ticket = tickets.find(t => t.id === ticketId);
+                if (ticket) {
+                    document.getElementById('ticketId').value = ticket.id;
+                    document.getElementById('ticketTitle').value = ticket.title;
+                    document.getElementById('ticketPriority').value = ticket.priority;
+                    document.getElementById('ticketCategory').value = ticket.category;
+                    document.getElementById('ticketStatus').value = ticket.status;
+                    document.getElementById('ticketDescription').value = ticket.description;
+                }
+            } else {
+                modalTitle.textContent = 'Nuevo Ticket';
+                document.getElementById('ticketId').value = '';
+                document.getElementById('ticketStatus').value = 'todo';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('ticketModal').classList.add('hidden');
+        }
+
+        // Save (Create or Update) Ticket
+        function saveTicket(event) {
+            event.preventDefault();
+            const id = document.getElementById('ticketId').value;
+            const title = document.getElementById('ticketTitle').value.trim();
+            const priority = document.getElementById('ticketPriority').value;
+            const category = document.getElementById('ticketCategory').value.trim();
+            const status = document.getElementById('ticketStatus').value;
+            const description = document.getElementById('ticketDescription').value.trim();
+
+            if (id) {
+                // Update existing
+                const ticket = tickets.find(t => t.id === id);
+                if (ticket) {
+                    ticket.title = title;
+                    ticket.priority = priority;
+                    ticket.category = category;
+                    ticket.status = status;
+                    ticket.description = description;
+                    showToast('Ticket actualizado exitosamente');
+                }
+            } else {
+                // Create new
+                const newTicket = {
+                    id: 'ticket-' + Date.now(),
+                    title,
+                    description,
+                    priority,
+                    category,
+                    status,
+                    createdAt: new Date().toISOString()
+                };
+                tickets.push(newTicket);
+                showToast('Ticket creado exitosamente');
+            }
+
+            saveToStorage();
+            renderBoard();
+            closeModal();
+        }
+
+        // Delete Ticket
+        function deleteTicket(ticketId) {
+            if (confirm('¿Estás seguro de que deseas eliminar este ticket permanentemente?')) {
+                tickets = tickets.filter(t => t.id !== ticketId);
+                saveToStorage();
+                renderBoard();
+                showToast('Ticket eliminado', 'warning');
+            }
+        }
+
+        // Utility to prevent XSS injection in text rendering
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+            }
+
+        // Initialize board on load
+        window.onload = function() {
+            renderBoard();
+        };
+    </script>
+</body>
+</html>
